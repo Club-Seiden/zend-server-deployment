@@ -1,0 +1,7 @@
+.settings
+.buildpath
+.project
+.idea
+vendor/
+config/autoload/local.php
+config/autoload/*.local.php
