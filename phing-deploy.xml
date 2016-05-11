@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding='UTF-8' ?>
+<project name="OCAP" default="main">
+
+    <property file="phing-deploy.properties" />
+    <property name="package" value="${application.package.name}" override="true" />
+    <property name="zpk.name" value="${application.package.name}" override="true" />
+    <property name="releaseNumber" value="" override="true" />
+
+    <target name="main" depends="setup,composerInstall,
+        customizeDeploymentProperties,packApplication,deployApplication,cleanup" />
+
+    <target name="setup">
+        <mkdir dir="${zpk.path}" />
+    </target>
+
+    <target name="composerInstall">
+        <exec command="composer install --optimize-autoloader --no-dev --prefer-dist" dir="${base.dir}"
+              logoutput="true" checkreturn="true" />
+    </target>
+
+    <target name="customizeDeploymentProperties">
+        <exec command="git rev-parse --short HEAD" outputProperty="releaseNumber" logoutput="true"/>
+
+        <adhoc-task name="customizeDeploymentProperties">
+            <![CDATA[
+            class CustomizeDeploymentPropertiesTest extends Task {
+                private $appRelease;
+
+                function setAppRelease($release) {
+                    $this->appRelease = $release;
+                }
+
+                function main() {
+                    $package = simplexml_load_file('deployment.xml');
+                    $package->version[0]->release = $this->appRelease;
+                    $package->asXML('deployment.xml');
+                }
+            }
+            ]]>
+        </adhoc-task>
+
+        <customizeDeploymentProperties appRelease="${releaseNumber}" />
+    </target>
+
+    <target name="packApplication">
+        <exec command="${php.bin} ${zsclient.path} packZpk --folder=${base.dir} --destination=${zpk.path} --version=${releaseNumber} --name=${zpk.name}-${releaseNumber}.zpk" checkreturn="true" logoutput="true" />
+        <exec command="${php.bin} ${zsclient.path} verifyZpk --from=${zpk.path}/${zpk.name}-${releaseNumber}.zpk" checkreturn="true" logoutput="true" />
+    </target>
+
+    <target name="deployApplication">
+        <exec command="${php.bin} ${zsclient.path} installApp --zpk=${zpk.path}/${zpk.name}-${releaseNumber}.zpk --target=${zsclient.target.name} --baseUri=${application.baseUri}" checkreturn="true" logoutput="true" />
+    </target>
+
+    <target name="cleanup">
+        <delete dir="${zpk.path}" />
+        <exec command="composer install --prefer-dist" dir="${base.dir}" logoutput="true" checkreturn="true" />
+    </target>
+</project>

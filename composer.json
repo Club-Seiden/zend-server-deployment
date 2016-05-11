@@ -6,5 +6,8 @@
         "psr-4": {
             "Acme\\": "src/"
         }
+    },
+    "require-dev": {
+        "phing/phing": "^2.14"
     }
 }
